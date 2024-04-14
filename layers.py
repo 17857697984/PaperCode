@@ -94,14 +94,24 @@ class graph_interation (nn.Module):
         super (graph_interation, self).__init__ ()
         self.k = k
     def forward(self, adj_set,adj_static):
-        len = len(adj_set)
+        seq_len = len(adj_set)
+        for i in range(seq_len):
+            adj_sum = adj_static + adj_static.transpose (0, 1)
+            adj_sum += torch.eye (adj_static.size (0))  # 添加单位矩阵
 
-        for i in range(len):
-            adj_sum = adj_set[i] + adj_set[i].transpose (0, 1)
-            adj_sum += torch.eye (adj_set[i].size (0))  # 添加单位矩阵
-            mark_s = torch.where (adj_sum > 0, torch.ones_like (adj_sum), torch.zeros_like (adj_sum))  # 大于0设为1，否则设为0
-            mark_d = torch.topk(mark_s,self.k,dim=1)
-            new_static_graph = torch.mm(adj_static, mark_s)
+            # 得到了动态图的mask
+            mask_d = torch.where (adj_sum > 0, torch.ones_like (adj_sum), torch.zeros_like (adj_sum))  # 大于0设为1，否则设为0
+
+            topK,_ = torch.topk(adj_set[i],self.k,dim=1)
+
+            min_adj,_ = torch.min(topK,dim=1)
+
+            # 得到静态图的mask
+            mark_s = torch.where (adj_set[i] >= min_adj, torch.ones_like (adj_set[i]), torch.zeros_like (adj_set[i]))
+
+            adj_static = torch.mm(adj_static, mark_s)
+            adj_set[i] = torch.mm(adj_set[i], mask_d)
+        return adj_static,adj_set
 
 
 

@@ -1,6 +1,7 @@
 import argparse
 import layers
 import torch
+import net
 from utils import DataLoaderS
 
 parser = argparse.ArgumentParser(description='PyTorch Time series forecasting')
@@ -20,7 +21,7 @@ data_dir = "data/" + args.data
 
 Data = DataLoaderS (data_dir, 0.6, 0.2, device, 3, 5, 2)
 # print(Data.train[0].shape)
-
+net = net.Net(device, 3, 8, 5, 1, 0.5, 1)
 ngc = layers.dynamic_graph_constructor(3,8,5)
 
 for X, Y in Data.get_batches(Data.train[0], Data.train[1], 4, True):
@@ -29,6 +30,6 @@ for X, Y in Data.get_batches(Data.train[0], Data.train[1], 4, True):
     # 转置
     X = X.transpose (2, 3)
     # print (X.shape)
-    ngc (X)
+    net (X)
     # print(X.shape)
     # print(Y.shape)
