@@ -1,16 +1,34 @@
-# 这是一个示例 Python 脚本。
+import argparse
+import layers
+import torch
+from utils import DataLoaderS
 
-# 按 Shift+F10 执行或将其替换为您的代码。
-# 按 双击 Shift 在所有地方搜索类、文件、工具窗口、操作和设置。
+parser = argparse.ArgumentParser(description='PyTorch Time series forecasting')
+parser.add_argument('--data', type=str, default='exchange_rate.txt',help='location of the data file')
+gc = layers.static_graph_constructor(nnodes=16,dim=1, device='cpu')
+x = torch.randint(0, 15,size=(1,16)).squeeze()
+# print(x.shape)
+# for para in gc.named_parameters():
+#     print(para[0],para[1].size)
+# for p in gc.parameters():
+#     print(p)
+# a = gc(x)
+args = parser.parse_args()
+# device = torch.device(args.device)
+device = torch.device('cpu')
+data_dir = "data/" + args.data
 
+Data = DataLoaderS (data_dir, 0.6, 0.2, device, 3, 5, 2)
+# print(Data.train[0].shape)
 
-def print_hi(name):
-    # 在下面的代码行中使用断点来调试脚本。
-    print(f'Hi, {name}')  # 按 Ctrl+F8 切换断点。
+ngc = layers.dynamic_graph_constructor(3,8,5)
 
-
-# 按间距中的绿色按钮以运行脚本。
-if __name__ == '__main__':
-    print_hi('PyCharm')
-
-# 访问 https://www.jetbrains.com/help/pycharm/ 获取 PyCharm 帮助
+for X, Y in Data.get_batches(Data.train[0], Data.train[1], 4, True):
+    # 增加通道维度
+    X = torch.unsqueeze (X, dim=1)
+    # 转置
+    X = X.transpose (2, 3)
+    # print (X.shape)
+    ngc (X)
+    # print(X.shape)
+    # print(Y.shape)
