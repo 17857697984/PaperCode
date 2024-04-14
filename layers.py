@@ -52,6 +52,7 @@ class dynamic_graph_constructor (nn.Module):
         # h_gru = torch.zeros (self.num_layers, inputs.size (0), self.hidden_dim).to (inputs.device)
         h0_gru = []
         outputs = []
+        # 存放每一个时间步上的gru的隐含状态构建的图
         adj_set = []
         # 第一次输入得到第1-168个gru的隐含状态（就是2：168+1）
         for i in range(self.nodes):
@@ -63,7 +64,7 @@ class dynamic_graph_constructor (nn.Module):
             outputs.append(output)
             # adj_set.append(h_gru)
 
-        # 去得到最终的gru隐状态
+        # 得到最终的gru隐状态
         for j in range(self.horizon-1):
             for i in range(self.nodes):
                 # print(h0_gru[i])
@@ -99,8 +100,10 @@ class graph_interation (nn.Module):
             adj_sum = adj_set[i] + adj_set[i].transpose (0, 1)
             adj_sum += torch.eye (adj_set[i].size (0))  # 添加单位矩阵
             mark_s = torch.where (adj_sum > 0, torch.ones_like (adj_sum), torch.zeros_like (adj_sum))  # 大于0设为1，否则设为0
-    def topK(self):
-        pass
+            mark_d = torch.topk(mark_s,self.k,dim=1)
+            new_static_graph = torch.mm(adj_static, mark_s)
+
+
 
 
 
