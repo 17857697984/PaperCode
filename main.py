@@ -6,7 +6,7 @@ from utils import DataLoaderS
 
 parser = argparse.ArgumentParser(description='PyTorch Time series forecasting')
 parser.add_argument('--data', type=str, default='exchange_rate.txt',help='location of the data file')
-gc = layers.static_graph_constructor(nnodes=16,dim=1, device='cpu')
+# gc = layers.static_graph_constructor(nnodes=16,dim=1, device='cpu')
 x = torch.randint(0, 15,size=(1,16)).squeeze()
 # print(x.shape)
 # for para in gc.named_parameters():

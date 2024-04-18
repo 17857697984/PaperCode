@@ -4,12 +4,12 @@ import torch
 
 
 class static_graph_constructor (nn.Module):
-    def __init__(self, nnodes, dim, device, alpha=3, theta1=0.5, theta2=0.5):
+    def __init__(self, nnodes, dim, device,batch_size, alpha=3):
         super (static_graph_constructor, self).__init__ ()
         self.nnodes = nnodes
         self.emb1 = nn.Embedding (nnodes, dim)
         self.emb2 = nn.Embedding (nnodes, dim)
-
+        self.batch_size = batch_size
         self.device = device
         self.dim = dim
         # alpha为模型的超参数
@@ -22,17 +22,25 @@ class static_graph_constructor (nn.Module):
         # self.lin2 = nn.Linear (dim, dim)
 
     def forward(self, id):
+        result = None
         nodevec1 = self.emb1 (id)
         nodevec2 = self.emb2 (id)
         # print(nodevec1.shape)
 
-        m1 = torch.tanh (self.alpha * torch.mm(nodevec1 , self.theta1))
-        m2 = torch.tanh (self.alpha * torch.mm (nodevec2 , self.theta2))
+        m1 = torch.tanh (self.alpha * torch.mm (nodevec1, self.theta1))
+        m2 = torch.tanh (self.alpha * torch.mm (nodevec2, self.theta2))
         # print(m1.shape)
         # print(m2.transpose(1,0).shape)
         adj = torch.relu (torch.tanh (self.alpha * torch.mm (m1, m2.transpose (1, 0))))
-        # print(adj.shape)
-        # print(adj)
+        # adj = adj.unsqueeze (0)
+        # print (adj.shape)
+        # for i in range(self.batch_size):
+
+            # if result is None:
+            #     result = adj
+            # else:
+            #     result = torch.cat((result,adj),0)
+            # print(adj)
 
         return adj
 
@@ -59,6 +67,7 @@ class dynamic_graph_constructor (nn.Module):
             input_i = inputs[:,:,i,:].squeeze(2).transpose (1, 2)
             # print(input_i.shape)
             output,h_gru = self.gru(input_i)
+            # print("隐状态")
             # print(h_gru.shape,output.shape)
             h0_gru.append(h_gru)
             outputs.append(output)
@@ -72,6 +81,14 @@ class dynamic_graph_constructor (nn.Module):
                 # print(h_gru)
                 h0_gru[i] = h_gru
                 outputs[i] = output
+        result_gru  = None
+        for i in range(self.nodes):
+            if result_gru is None:
+                result_gru = h0_gru[i]
+            else:
+                result_gru = torch.cat((result_gru,h0_gru[i]),dim=2)
+                print (result_gru.shape)
+
         # print (len (h0_gru), len (outputs))
             # adj_set.append(h_gru))
         # 逐时间步来建立每个时间步上的图
@@ -88,7 +105,7 @@ class dynamic_graph_constructor (nn.Module):
             # print(temp_adj)
             adj_set.append(temp_adj)
         # print(len(adj_set))
-        return adj_set,h0_gru
+        return adj_set,result_gru.transpose(0,1)
 class graph_interation (nn.Module):
     def __init__(self,k):
         super (graph_interation, self).__init__ ()
@@ -107,14 +124,66 @@ class graph_interation (nn.Module):
             min_adj,_ = torch.min(topK,dim=1)
 
             # 得到静态图的mask
-            mark_s = torch.where (adj_set[i] >= min_adj, torch.ones_like (adj_set[i]), torch.zeros_like (adj_set[i]))
-
-            adj_static = torch.mm(adj_static, mark_s)
+            mask_s = torch.where (adj_set[i] >= min_adj, torch.ones_like (adj_set[i]), torch.zeros_like (adj_set[i]))
+            print(adj_static.shape,mask_s.shape)
+            # 通过mask进行交互
+            adj_static = torch.mm(adj_static, mask_s)
             adj_set[i] = torch.mm(adj_set[i], mask_d)
         return adj_static,adj_set
 
+class Static_Graph_Convolution(nn.Module):
+    def __init__(self, beta,node):
+        super(Static_Graph_Convolution, self).__init__()
+        self.beta = beta
+        # 权重矩阵
+        self.W = nn.Parameter(torch.FloatTensor(node, node))
 
+    def forward(self, A, h):
+        D = self.calculate_degree_matrix (A)
+        inv_D = self.calculate_inverse_degree_matrix (D)
+        A += torch.eye (A.size (0))  # 添加单位矩阵
+        A_st = torch.mm(A, inv_D)
+        print(A_st.shape,h.shape)
+        A_st_11 = torch.mm(A_st, h)
+        print(h.shape,A_st.shape,A_st_11.shape)
+        t1 = self.beta * h
+        print(t1.shape)
+        t2 = (1 - self.beta) * A_st
+        print (t2.shape)
+        temp  = self.beta * h + (1 - self.beta) * A_st
+        print(temp.shape)
+        temph = torch.matmul(temp, self.W)
+        print(temph.shape)
+        return temph
 
+    def calculate_degree_matrix(self, A):
+        # 计算每一行的和，即节点的度数
+        degrees = torch.sum (A, dim=1)
+        # 构造度矩阵 D
+        D = torch.diag (degrees) + torch.eye (degrees.size (0))
+        return D
 
+    def calculate_inverse_degree_matrix(self,D):
+        # 计算度矩阵的逆矩阵
+        print(D)
+        D_inv = torch.inverse (D)
+        return D_inv
+class Dynamic_Graph_Convolution(nn.Module):
+    def __init__(self):
+        super(Dynamic_Graph_Convolution, self).__init__()
+    def forward(self, A, h):
+        # 计算每行的指数形式的和
+        row_exp_A = torch.sum (torch.exp (A), dim=1)
+
+        # 将矩阵中的每个元素取指数
+        matrix_exp = torch.exp (A)
+
+        # 将矩阵中的每个元素除以相应行和的指数形式的和
+        normalized_A = matrix_exp / row_exp_A.view (-1, 1)
+
+        # 将归一化后的矩阵和矩阵 h 的同一行相乘并求和
+        result = torch.sum (normalized_A * h, dim=1)
+
+        return result
 
 
