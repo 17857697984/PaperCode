@@ -116,7 +116,7 @@ parser.add_argument('--node_dim',type=int,default=40,help='dim of nodes')
 parser.add_argument('--scale_channels',type=int,default=32,help='scale channels')
 parser.add_argument('--end_channels',type=int,default=64,help='end channels')
 parser.add_argument('--in_dim',type=int,default=1,help='inputs dimension')
-parser.add_argument('--seq_in_len',type=int,default=24*7,help='input sequence length')
+parser.add_argument('--seq_in_len',type=int,default=24,help='input sequence length')
 parser.add_argument('--seq_out_len',type=int,default=1,help='output sequence length')
 parser.add_argument('--horizon', type=int, default=3)
 parser.add_argument('--layers',type=int,default=3,help='number of layers')
@@ -126,14 +126,19 @@ parser.add_argument('--weight_decay',type=float,default=0.00001,help='weight dec
 parser.add_argument('--clip',type=int,default=5,help='clip')
 parser.add_argument('--propalpha',type=float,default=0.05,help='prop alpha')
 parser.add_argument('--tanhalpha',type=float,default=3,help='tanh alpha')
-parser.add_argument('--epochs',type=int,default=1,help='')
+parser.add_argument('--epochs',type=int,default=50,help='')
 parser.add_argument('--num_split',type=int,default=1,help='number of splits for graphs')
 parser.add_argument('--step_size',type=int,default=100,help='step_size')
 
 
 args = parser.parse_args()
 # device = torch.device(args.device)
-device = torch.device('cpu')
+if torch.cuda.is_available():
+    device = torch.device("cuda:0")
+    print("GPU is available")
+else:
+    device = torch.device("cpu")
+    print("GPU is not available, using CPU")
 torch.set_num_threads(3)
 
 

@@ -96,9 +96,10 @@ class dynamic_graph_constructor (nn.Module):
         return result,h
 
 class graph_interation (nn.Module):
-    def __init__(self, k):
+    def __init__(self, k,device):
         super (graph_interation, self).__init__ ()
         self.k = k
+        self.device = device
 
     def forward(self, adj_set, adj_static):
         seq_len = len (adj_set)
@@ -107,8 +108,12 @@ class graph_interation (nn.Module):
             adj_sum = adj_static + torch.transpose(adj_static, 2, 3)
             # print (adj_sum.shape)
             # 创建单位矩阵，并扩展成与邻接矩阵相同的形状
-            unit_matrix = torch.eye (adj_static.size (2)).unsqueeze (0).unsqueeze (0)
+            # 创建单位矩阵并将其移到相同的设备上
+            unit_matrix = torch.eye (adj_static.size (2)).unsqueeze (0).unsqueeze (0).to (self.device)
             unit_matrix = unit_matrix.repeat (adj_static.size (0), adj_static.size (1), 1, 1)
+
+            # 将 adj_sum 移到相同的设备上
+            adj_sum = adj_sum.to (self.device)
             # print (unit_matrix.shape)
             adj_sum = adj_sum + unit_matrix  # 添加单位矩阵
             # print(unit_matrix.shape)
@@ -140,9 +145,10 @@ class graph_interation (nn.Module):
 
 
 class Static_Graph_Convolution (nn.Module):
-    def __init__(self, beta, node):
+    def __init__(self, beta, node,device):
         super (Static_Graph_Convolution, self).__init__ ()
         self.beta = beta
+        self.device = device
         # 权重矩阵
         self.W = nn.Parameter (torch.FloatTensor (node, node))
         self.node_num = node
@@ -152,8 +158,9 @@ class Static_Graph_Convolution (nn.Module):
             A = adj_static_list[i]
             h = h_s_gru[i]
             inv_D = self.calculate_degree_and_inverse_matrix (A)
-            unit_matrix = torch.eye (A.size (2)).unsqueeze (0).unsqueeze (0)
+            unit_matrix = torch.eye (A.size (2)).unsqueeze (0).unsqueeze (0).to (self.device)
             unit_matrix = unit_matrix.repeat (A.size (0), A.size (1), 1, 1)
+            A = A.to(self.device)
             A = A + unit_matrix # 添加单位矩阵
             # print (A.shape, h.shape)
             A_st = torch.mul(A, inv_D)

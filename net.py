@@ -17,8 +17,8 @@ class Net(nn.Module):
         self.batch_size = 4
         self.static_graph_constructor = layers.static_graph_constructor(self.nodes, self.dim, self.device,self.batch_size)
         self.dynamic_graph_constructor = layers.dynamic_graph_constructor(self.horizon, self.nodes, self.seq_len)
-        self.graph_interation = layers.graph_interation(self.k)
-        self.static_Graph_Convolution = layers.Static_Graph_Convolution(beta, self.nodes)
+        self.graph_interation = layers.graph_interation(self.k,self.device)
+        self.static_Graph_Convolution = layers.Static_Graph_Convolution(beta, self.nodes,self.device)
         self.dynamic_Graph_Convolution = layers.Dynamic_Graph_Convolution()
         self.gru = layers.gru_h(horizon, nodes, seq_len)
         self.prediction_Module = layers.Prediction_Module(self.horizon, self.nodes, self.seq_len,input_size=2*nodes)
