@@ -20,18 +20,28 @@ class Net(nn.Module):
         self.graph_interation = layers.graph_interation(self.k)
         self.static_Graph_Convolution = layers.Static_Graph_Convolution(beta, self.nodes)
         self.dynamic_Graph_Convolution = layers.Dynamic_Graph_Convolution()
+        self.gru = layers.gru_h(horizon, nodes, seq_len)
+        self.prediction_Module = layers.Prediction_Module(self.horizon, self.nodes, self.seq_len,input_size=2*nodes)
     def forward(self,inputs):
-        print("开始")
-        x = torch.randint (0, self.nodes, size=(1, self.nodes)).squeeze ()
+        # print("开始")
         # 获得静态图
-        static_graph = self.static_graph_constructor(x)
+        static_graph = self.static_graph_constructor(inputs)
         # 获得动态图和gru的隐状态
         self.adj_set,self.h_gru = self.dynamic_graph_constructor(inputs)
+        # print("完成静态图和动态图的构建")
+        # print(static_graph.shape,self.adj_set[0].shape,self.h_gru[0].shape)
         # 静态图和动态图交互
-        self.graph_interation(self.adj_set,static_graph)
+        adj_static_list, adj_dynamic_list = self.graph_interation(self.adj_set,static_graph)
+        # print("完成静态图和动态图的交互")
+        # print(adj_static_list[0].shape,adj_dynamic_list[0].shape)
         # 静态图卷积
-        h_st = self.static_Graph_Convolution(static_graph,self.h_gru)
-        print(h_st.shape)
+        h_s_gru = self.gru(inputs)
+        h_st = self.static_Graph_Convolution(adj_static_list,h_s_gru)
+        # print(h_st[0].shape)
+        # print ("完成静态图卷积")
         # 动态图卷积
-        h_dt = self.dynamic_Graph_Convolution(self.adj_set[-1],self.h_gru)
-        print (h_dt.shape)
+        h_dt = self.dynamic_Graph_Convolution(adj_dynamic_list,self.h_gru)
+        # print ("完成动态图卷积")
+        # print (h_dt[0].shape)
+        y = self.prediction_Module(h_dt,h_st)
+        return y.squeeze()
